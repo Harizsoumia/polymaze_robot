@@ -1,3 +1,4 @@
+//for testing purposes for now THIS IS ONLY A TEMPLATE
 #pragma once
 #include <Arduino.h>
 #include "intersection.h"
