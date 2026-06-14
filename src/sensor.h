@@ -7,13 +7,13 @@
 #define EMITTER_PIN 2 // controls IR emitters ON/OFF
 
 // ─── IR WALL SENSORS ─────────────────────────────────────────
-#define LEFT_IR 26  // left wall sensor
-#define RIGHT_IR 25 // right wall sensor
+#define LEFT_IR 14  // left wall sensor
+#define RIGHT_IR 42 // right wall sensor
 
 // ─── SENSOR PINS ─────────────────────────────────────────────
 const uint8_t SENSOR_PINS[NUM_SENSORS] = {
-    36, 39, 34, 35, 32, 33, 27, 14
-    //  S1  S2  S3  S4  S5  S6  S7  S8
+    40, 21, 41, 45, 16, 18, 3, 46
+    //  S1  S2  S3 S4  S5  S6  S7  S8
     //  LEFT                      RIGHT
 };
 
@@ -113,8 +113,7 @@ bool isDeadEnd()
 }
 
 // ─── WALL DETECTION ──────────────────────────────────────────
-// Returns true if wall detected on that side
-// IR sensors: LOW = wall detected, HIGH = no wall (typical)
+// IR sensors: LOW = wall detected, HIGH = no wall
 bool wallLeft()
 {
     return (digitalRead(LEFT_IR) == LOW);

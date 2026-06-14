@@ -3,15 +3,13 @@
 
 // ─── PIN DEFINITIONS ─────────────────────────────────────────
 // Change these to match your actual wiring later
-#define AIN1 27
-#define AIN2 26
-#define PWMA 25 // Motor A (LEFT)
-
-#define BIN1 33
-#define BIN2 32
-#define PWMB 14 // Motor B (RIGHT)
-
-#define STBY 12 // Standby pin — must be HIGH to enable driver
+#define AIN1 15
+#define AIN2 6
+#define PWMA 5
+#define BIN1 10
+#define BIN2 11
+#define PWMB 12
+#define STBY 17
 
 // ─── PWM CONFIG (ESP32 LEDC) ─────────────────────────────────
 #define LEDC_FREQ 1000 // 1kHz PWM frequency
@@ -26,20 +24,18 @@
 // ─────────────────────────────────────────────────────────────
 void motorsInit()
 {
-    // Direction pins
     pinMode(AIN1, OUTPUT);
     pinMode(AIN2, OUTPUT);
     pinMode(BIN1, OUTPUT);
     pinMode(BIN2, OUTPUT);
     pinMode(STBY, OUTPUT);
 
-    // Setup LEDC PWM channels
-    ledcSetup(LEDC_CH_A, LEDC_FREQ, LEDC_RES);
-    ledcSetup(LEDC_CH_B, LEDC_FREQ, LEDC_RES);
+    // ESP32-S3 uses ledcAttach differently
     ledcAttachPin(PWMA, LEDC_CH_A);
     ledcAttachPin(PWMB, LEDC_CH_B);
+    ledcSetup(LEDC_CH_A, LEDC_FREQ, LEDC_RES);
+    ledcSetup(LEDC_CH_B, LEDC_FREQ, LEDC_RES);
 
-    // Enable driver
     digitalWrite(STBY, HIGH);
 }
 
