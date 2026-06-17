@@ -57,10 +57,57 @@ void pidFollow()
     Serial.println(correction);
 }
 
-// ─── RESET PID ───────────────────────────────────────────────
-// Call this when robot stops or changes behavior
+void resetPID();
+
+// ─── RECOVERY FROM LINE LOSS ─────────────────────────────────
+
+// Implementation moved here so resetPID is visible to recoverLine
 void resetPID()
 {
     lastError = 0;
     integral = 0;
 }
+
+bool recoverLine()
+{
+    float recoveryDirection = lastError;
+    resetPID();
+    const int recoverySpeed = 90;
+    const int sweepTime = 80;
+
+    if (recoveryDirection >= 0)
+    {
+        turnRight(recoverySpeed);
+    }
+    else
+    {
+        turnLeft(recoverySpeed);
+    }
+
+    delay(sweepTime);
+    stopMotors();
+    if (isLineDetected())
+        return true;
+
+    if (recoveryDirection >= 0)
+    {
+        turnLeft(recoverySpeed);
+    }
+    else
+    {
+        turnRight(recoverySpeed);
+    }
+
+    delay(sweepTime * 2);
+    stopMotors();
+    if (isLineDetected())
+        return true;
+
+    driveForward(recoverySpeed / 2);
+    delay(sweepTime);
+    stopMotors();
+    return isLineDetected();
+}
+
+// ─── RESET PID (moved) ───────────────────────────────────────
+// Implementation was moved earlier above `recoverLine()` to fix declaration order.

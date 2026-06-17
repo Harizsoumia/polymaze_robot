@@ -55,7 +55,7 @@ void colorInit()
     // Turn both LEDs off at start
     digitalWrite(RED_LED_PIN, LOW);
     digitalWrite(GREEN_LED_PIN, LOW);
-    Wire.begin(21, 20);
+    Wire.begin(8, 9);
     if (!tcs.begin())
     {
         Serial.println("TCS34725 not found! Check wiring.");

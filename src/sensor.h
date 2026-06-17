@@ -17,6 +17,9 @@ const uint8_t SENSOR_PINS[NUM_SENSORS] = {
     //  LEFT                      RIGHT
 };
 
+#define LINE_DETECT_THRESHOLD 250
+#define LINE_DETECT_MIN_ACTIVE 1
+
 // ─── GLOBALS ─────────────────────────────────────────────────
 QTRSensors qtr;
 uint16_t sensorValues[NUM_SENSORS]; // raw readings per sensor
@@ -31,8 +34,8 @@ void sensorInit()
     qtr.setEmitterPin(EMITTER_PIN);
 
     // IR wall sensors
-    pinMode(LEFT_IR, INPUT);
-    pinMode(RIGHT_IR, INPUT);
+    pinMode(LEFT_IR, INPUT_PULLUP);
+    pinMode(RIGHT_IR, INPUT_PULLUP);
 }
 
 // ─── CALIBRATION ─────────────────────────────────────────────
@@ -78,17 +81,26 @@ int16_t readLine()
     return position;
 }
 
-// ─── HELPER: IS LINE LOST? ───────────────────────────────────
-bool isLineLost()
+// ─── HELPER: LINE PRESENCE ───────────────────────────────────
+bool isLineDetected()
 {
     readLine();
     int activeCount = 0;
+    int maxValue = 0;
+
     for (int i = 0; i < NUM_SENSORS; i++)
     {
-        if (sensorValues[i] > 500)
+        maxValue = max(maxValue, (int)sensorValues[i]);
+        if (sensorValues[i] > LINE_DETECT_THRESHOLD)
             activeCount++;
     }
-    return (activeCount == 0);
+
+    return (maxValue >= LINE_DETECT_THRESHOLD && activeCount >= LINE_DETECT_MIN_ACTIVE);
+}
+
+bool isLineLost()
+{
+    return !isLineDetected();
 }
 
 // ─── HELPER: INTERSECTION DETECTION ─────────────────────────
@@ -96,7 +108,7 @@ bool isLineLost()
 bool isIntersection()
 {
     readLine();
-    return (sensorValues[0] > 500 && sensorValues[7] > 500);
+    return (sensorValues[0] > LINE_DETECT_THRESHOLD && sensorValues[7] > LINE_DETECT_THRESHOLD);
 }
 
 // ─── HELPER: DEAD END ────────────────────────────────────────
@@ -106,10 +118,10 @@ bool isDeadEnd()
     int activeCount = 0;
     for (int i = 0; i < NUM_SENSORS; i++)
     {
-        if (sensorValues[i] > 500)
+        if (sensorValues[i] > LINE_DETECT_THRESHOLD)
             activeCount++;
     }
-    return (activeCount <= 2 && sensorValues[0] < 500 && sensorValues[7] < 500);
+    return (activeCount <= 2 && sensorValues[0] < LINE_DETECT_THRESHOLD && sensorValues[7] < LINE_DETECT_THRESHOLD);
 }
 
 // ─── WALL DETECTION ──────────────────────────────────────────
