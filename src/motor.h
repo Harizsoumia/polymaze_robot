@@ -1,15 +1,16 @@
 #pragma once
 #include <Arduino.h>
+#include "driver/ledc.h"
 
 // ─── PIN DEFINITIONS ─────────────────────────────────────────
 // Change these to match your actual wiring later
-#define AIN1 15
-#define AIN2 6
-#define PWMA 5
-#define BIN1 10
-#define BIN2 11
-#define PWMB 12
-#define STBY 17
+#define AIN1 10
+#define AIN2 9
+#define PWMA 46
+#define BIN1 12
+#define BIN2 13
+#define PWMB 14
+#define STBY 11
 
 // ─── PWM CONFIG (ESP32 LEDC) ─────────────────────────────────
 #define LEDC_FREQ 1000 // 1kHz PWM frequency
@@ -30,17 +31,37 @@ void motorsInit()
     pinMode(BIN2, OUTPUT);
     pinMode(STBY, OUTPUT);
 
-    // ESP32-S3 uses ledcAttach differently
-    ledcAttachPin(PWMA, LEDC_CH_A);
-    ledcAttachPin(PWMB, LEDC_CH_B);
-    ledcSetup(LEDC_CH_A, LEDC_FREQ, LEDC_RES);
-    ledcSetup(LEDC_CH_B, LEDC_FREQ, LEDC_RES);
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .duty_resolution = LEDC_TIMER_8_BIT,
+        .timer_num = LEDC_TIMER_0,
+        .freq_hz = LEDC_FREQ,
+        .clk_cfg = LEDC_AUTO_CLK};
+    ledc_timer_config(&ledc_timer);
+
+    ledc_channel_config_t ledc_channel_A = {
+        .gpio_num = PWMA,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel = LEDC_CHANNEL_0,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = LEDC_TIMER_0,
+        .duty = 0,
+        .hpoint = 0};
+    ledc_channel_config(&ledc_channel_A);
+
+    ledc_channel_config_t ledc_channel_B = {
+        .gpio_num = PWMB,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel = LEDC_CHANNEL_1,
+        .intr_type = LEDC_INTR_DISABLE,
+        .timer_sel = LEDC_TIMER_0,
+        .duty = 0,
+        .hpoint = 0};
+    ledc_channel_config(&ledc_channel_B);
 
     digitalWrite(STBY, HIGH);
 }
 
-// ─── SET INDIVIDUAL MOTOR SPEED ──────────────────────────────
-// speed: -255 (full back) to +255 (full forward)
 void setMotorA(int speed)
 {
     speed = constrain(speed, -MAX_SPEED, MAX_SPEED);
@@ -60,7 +81,9 @@ void setMotorA(int speed)
         digitalWrite(AIN1, LOW);
         digitalWrite(AIN2, LOW);
     }
-    ledcWrite(LEDC_CH_A, speed);
+
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, speed);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 }
 
 void setMotorB(int speed)
@@ -82,7 +105,8 @@ void setMotorB(int speed)
         digitalWrite(BIN1, LOW);
         digitalWrite(BIN2, LOW);
     }
-    ledcWrite(LEDC_CH_B, speed);
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, speed);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
 }
 
 // ─── HIGH LEVEL DRIVE FUNCTIONS ──────────────────────────────

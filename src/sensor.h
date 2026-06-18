@@ -2,47 +2,31 @@
 #include <Arduino.h>
 #include <QTRSensors.h>
 
-// ─── CONFIG ──────────────────────────────────────────────────
 #define NUM_SENSORS 8
-#define EMITTER_PIN 2 // controls IR emitters ON/OFF
+#define EMITTER_PIN 8
 
-// ─── IR WALL SENSORS ─────────────────────────────────────────
-#define LEFT_IR 14  // left wall sensor
-#define RIGHT_IR 42 // right wall sensor
-
-// ─── SENSOR PINS ─────────────────────────────────────────────
 const uint8_t SENSOR_PINS[NUM_SENSORS] = {
-    40, 21, 41, 45, 16, 18, 3, 46
-    //  S1  S2  S3 S4  S5  S6  S7  S8
-    //  LEFT                      RIGHT
+    18, 17, 16, 15, 7, 6, 5, 4
+
 };
 
-#define LINE_DETECT_THRESHOLD 250
+#define LINE_DETECT_THRESHOLD 500
 #define LINE_DETECT_MIN_ACTIVE 1
 
-// ─── GLOBALS ─────────────────────────────────────────────────
 QTRSensors qtr;
-uint16_t sensorValues[NUM_SENSORS]; // raw readings per sensor
-int16_t position;                   // 0 to 7000, center = 3500
+uint16_t sensorValues[NUM_SENSORS];
+int16_t position;
 
-// ─────────────────────────────────────────────────────────────
 void sensorInit()
 {
-    // QTR line sensors
     qtr.setTypeRC();
     qtr.setSensorPins(SENSOR_PINS, NUM_SENSORS);
     qtr.setEmitterPin(EMITTER_PIN);
-
-    // IR wall sensors
-    pinMode(LEFT_IR, INPUT_PULLUP);
-    pinMode(RIGHT_IR, INPUT_PULLUP);
 }
 
-// ─── CALIBRATION ─────────────────────────────────────────────
-// Call this once at startup — robot must sweep over the line
 void calibrateSensors()
 {
-    Serial.println("Calibrating... move robot over line");
+    Serial.println("Calibrating, move robot over line");
 
     qtr.emittersOn();
 
@@ -53,49 +37,27 @@ void calibrateSensors()
     }
 
     qtr.emittersOff();
-    Serial.println("Calibration done!");
-
-    // Print calibration results for debugging
-    Serial.println("Min values:");
-    for (int i = 0; i < NUM_SENSORS; i++)
-    {
-        Serial.print(qtr.calibrationOn.minimum[i]);
-        Serial.print(" ");
-    }
-    Serial.println();
-
-    Serial.println("Max values:");
-    for (int i = 0; i < NUM_SENSORS; i++)
-    {
-        Serial.print(qtr.calibrationOn.maximum[i]);
-        Serial.print(" ");
-    }
-    Serial.println();
+    Serial.println("Calibration done");
 }
 
-// ─── READ POSITION ───────────────────────────────────────────
-// Returns position: 0 (far left) → 3500 (center) → 7000 (far right)
 int16_t readLine()
 {
     position = qtr.readLineBlack(sensorValues);
     return position;
 }
 
-// ─── HELPER: LINE PRESENCE ───────────────────────────────────
 bool isLineDetected()
 {
     readLine();
     int activeCount = 0;
-    int maxValue = 0;
 
     for (int i = 0; i < NUM_SENSORS; i++)
     {
-        maxValue = max(maxValue, (int)sensorValues[i]);
         if (sensorValues[i] > LINE_DETECT_THRESHOLD)
             activeCount++;
     }
 
-    return (maxValue >= LINE_DETECT_THRESHOLD && activeCount >= LINE_DETECT_MIN_ACTIVE);
+    return (activeCount >= LINE_DETECT_MIN_ACTIVE);
 }
 
 bool isLineLost()
@@ -103,15 +65,12 @@ bool isLineLost()
     return !isLineDetected();
 }
 
-// ─── HELPER: INTERSECTION DETECTION ─────────────────────────
-// Returns true if robot hits a T or cross intersection
 bool isIntersection()
 {
     readLine();
     return (sensorValues[0] > LINE_DETECT_THRESHOLD && sensorValues[7] > LINE_DETECT_THRESHOLD);
 }
 
-// ─── HELPER: DEAD END ────────────────────────────────────────
 bool isDeadEnd()
 {
     readLine();
@@ -122,16 +81,4 @@ bool isDeadEnd()
             activeCount++;
     }
     return (activeCount <= 2 && sensorValues[0] < LINE_DETECT_THRESHOLD && sensorValues[7] < LINE_DETECT_THRESHOLD);
-}
-
-// ─── WALL DETECTION ──────────────────────────────────────────
-// IR sensors: LOW = wall detected, HIGH = no wall
-bool wallLeft()
-{
-    return (digitalRead(LEFT_IR) == LOW);
-}
-
-bool wallRight()
-{
-    return (digitalRead(RIGHT_IR) == LOW);
 }
