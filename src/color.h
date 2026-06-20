@@ -5,17 +5,28 @@
 
 // ─── COLOR THRESHOLDS ────────────────────────────────────────
 // These are starting values — calibrate after testing!
-#define RED_R_MIN 150
-#define RED_G_MAX 100
-#define RED_B_MAX 100
+// ─── COLOR THRESHOLDS ────────────────────────────────────────
+// Based on actual calibration data
 
-#define GREEN_R_MAX 100
-#define GREEN_G_MIN 150
-#define GREEN_B_MAX 100
+// BLACK — C value below this = black
+#define BLACK_C_MAX 250 // your black C was 155-188
+
+// WHITE — C value above this + R highest
+#define WHITE_C_MIN 800
+
+// GREEN — G and B both high, C high
+#define GREEN_G_MIN 70  // gNorm > 85
+#define GREEN_B_MIN 70  // bNorm > 85
+#define GREEN_C_MIN 800 // C > 1200
+
+// RED — need to retest with true red surface
+// temporary thresholds until you retest
+#define RED_R_MIN 100 // rNorm > 100
+#define RED_G_MAX 150 // gNorm < 150
 
 // ─── LED PINS ────────────────────────────────────────────────
-#define RED_LED_PIN 23
-#define GREEN_LED_PIN 12
+#define RED_LED_PIN 9
+#define GREEN_LED_PIN 8
 
 // ─── DETECTED COLOR ──────────────────────────────────────────
 enum DetectedColor
@@ -44,7 +55,7 @@ void colorInit()
     // Turn both LEDs off at start
     digitalWrite(RED_LED_PIN, LOW);
     digitalWrite(GREEN_LED_PIN, LOW);
-
+    Wire.begin(8, 9);
     if (!tcs.begin())
     {
         Serial.println("TCS34725 not found! Check wiring.");
@@ -60,47 +71,54 @@ void readRGB(uint16_t &r, uint16_t &g, uint16_t &b, uint16_t &c)
     tcs.getRawData(&r, &g, &b, &c);
 }
 
-// ─── DETECT COLOR ────────────────────────────────────────────
-DetectedColor detectColor()
+// ─── CONFIRMATION FILTER ─────────────────────────────────────
+#define CONFIRM_COUNT 5 // must see same color N times in a row
+
+DetectedColor lastColor = COLOR_NONE;
+int colorCount = 0;
+
+DetectedColor getRawColor()
 {
     uint16_t r, g, b, c;
     tcs.getRawData(&r, &g, &b, &c);
 
-    // Normalize by clear channel to handle lighting changes
     if (c == 0)
         return COLOR_NONE;
 
-    float rNorm = (float)r / c * 255;
-    float gNorm = (float)g / c * 255;
-    float bNorm = (float)b / c * 255;
+    float rN = (float)r / c * 255;
+    float gN = (float)g / c * 255;
+    float bN = (float)b / c * 255;
 
     Serial.print("R:");
-    Serial.print(rNorm);
+    Serial.print(rN);
     Serial.print(" G:");
-    Serial.print(gNorm);
+    Serial.print(gN);
     Serial.print(" B:");
-    Serial.println(bNorm);
+    Serial.print(bN);
+    Serial.print(" C:");
+    Serial.print(c);
+    Serial.print(" G/R:");
+    Serial.println(gN / rN);
 
-    // Red band detection
-    if (rNorm > RED_R_MIN && gNorm < RED_G_MAX && bNorm < RED_B_MAX)
+    // BLACK — very low total light
+    if (c < 250)
+        return COLOR_BLACK;
+
+    // RED — R clearly dominant
+    if (rN > gN * 1.3 && rN > bN * 1.3 && rN > 80)
     {
         return COLOR_RED;
     }
 
-    // Green band detection
-    if (rNorm < GREEN_R_MAX && gNorm > GREEN_G_MIN && bNorm < GREEN_B_MAX)
+    // GREEN — high G/R ratio AND medium-low C
+    // AIR has same G/R but much higher C → excluded
+    if (gN / rN > 1.7 && c < 1000)
     {
         return COLOR_GREEN;
     }
 
-    // Black line
-    if (c < 500)
-    {
-        return COLOR_BLACK;
-    }
-
-    // White surface
-    if (c > 2000)
+    // WHITE — R dominant, high C
+    if (c > 800 && rN > gN && rN > bN)
     {
         return COLOR_WHITE;
     }
@@ -108,7 +126,30 @@ DetectedColor detectColor()
     return COLOR_NONE;
 }
 
-// ─── CHECKPOINT RESPONSE ─────────────────────────────────────
+DetectedColor detectColor()
+{
+    DetectedColor current = getRawColor();
+
+    if (current == lastColor)
+    {
+        colorCount++;
+    }
+    else
+    {
+        // color changed → reset counter
+        colorCount = 1;
+        lastColor = current;
+    }
+
+    // only return confirmed color
+    if (colorCount >= CONFIRM_COUNT)
+    {
+        return current;
+    }
+
+    // not confirmed yet → return NONE
+    return COLOR_NONE;
+}
 // Called when checkpoint detected — activates correct LED
 void handleCheckpoint(DetectedColor color)
 {

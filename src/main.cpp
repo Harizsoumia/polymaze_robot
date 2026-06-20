@@ -1,18 +1,24 @@
 #include <Arduino.h>
+#include "motor.h"
 
-// put function declarations here:
-int myFunction(int, int);
-
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+void setup()
+{
+    Serial.begin(115200);
+    motorsInit();
+    Serial.println("Test moteurs : A et B avant 2s");
+    delay(1000);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-}
+void loop()
+{
+    // Faire tourner les deux moteurs en avant
+    setMotorA(120);
+    setMotorB(120);
+    delay(2000);
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    stopMotors();
+    Serial.println("Arrêt des moteurs");
+    delay(2000);
+
+    // Recommence le test à intervalle régulier
 }
